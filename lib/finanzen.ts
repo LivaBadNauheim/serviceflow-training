@@ -34,6 +34,34 @@ export const ZEITRAUM_LABEL: Record<Zeitraum, string> = {
   monat: 'Dieser Monat',
 }
 
+export type VerkaufteArtikelZeile = { name: string; preis: number; menge: number }
+
+// Fasst die Bestellpositionen abgerechneter Tische zu einer Verkaufsstatistik
+// zusammen (z. B. "20x Espresso"). Gruppiert nach Name UND Preis, weil ein
+// Artikel mit Extras (z. B. "Cappuccino (Hafer)") einen eigenen Preis hat
+// und deshalb als eigene Zeile sinnvoller ist als zusammengemischt.
+export async function ladeVerkaufteArtikel(sessionIds: string[]): Promise<VerkaufteArtikelZeile[]> {
+  if (sessionIds.length === 0) return []
+
+  const supabase = getServiceClient()
+  const { data } = await supabase.from('bestellpositionen').select('name, preis, menge').in('session_id', sessionIds)
+
+  const nachArtikel = new Map<string, VerkaufteArtikelZeile>()
+  for (const p of data ?? []) {
+    const name = p.name as string
+    const preis = Number(p.preis)
+    const key = `${name}|${preis}`
+    const bisher = nachArtikel.get(key)
+    if (bisher) {
+      bisher.menge += Number(p.menge)
+    } else {
+      nachArtikel.set(key, { name, preis, menge: Number(p.menge) })
+    }
+  }
+
+  return Array.from(nachArtikel.values()).sort((a, b) => b.menge - a.menge)
+}
+
 export function filterZeitraum(sessions: GeschlosseneSession[], zeitraum: Zeitraum): GeschlosseneSession[] {
   const jetzt = new Date()
 

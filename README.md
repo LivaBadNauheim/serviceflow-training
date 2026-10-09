@@ -132,7 +132,8 @@ Mal neu hinzugefügten Positionen (nachverfolgt über `bonniert_at` in
 - `app/tisch/[id]` – Kassenbildschirm: Essen/Getränke-Tabs, Bestellung,
   Summe, Bonnieren, Abrechnen.
 - `app/admin` – nur für Rolle "admin": Tages-/Wochen-/Monatsabschluss,
-  Belege löschen, Excel-Export.
+  Belege löschen, Excel-Export (zwei Blätter: "Abschluss" pro Tisch und
+  "Verkaufte Artikel" als Menge/Einzelpreis/Summe je Artikel).
 - `app/admin/artikel` – Artikelgruppen, Artikel und Extras anlegen,
   bearbeiten und löschen.
 - `proxy.ts` – schützt alle Routen, Admin-Routen zusätzlich nach Rolle.
