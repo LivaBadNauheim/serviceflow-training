@@ -22,7 +22,7 @@ Liva-Seite verwenden). Danach im SQL-Editor die Migration ausführen:
 supabase/migrations/0001_init.sql
 ```
 
-Das legt die Tabellen an und seedet 12 Tische.
+Das legt die Tabellen an und seedet 24 Tische (1–15 drinnen, 16–24 Terrasse).
 
 ### 2. Umgebungsvariablen
 

@@ -5,9 +5,16 @@
 -- Server Actions (app/actions.ts) mit dem Service-Role-Key. RLS ist aktiv,
 -- aber ohne Policy = kein Zugriff von außen.
 
+do $$ begin
+  create type tisch_bereich as enum ('drinnen', 'terrasse');
+exception
+  when duplicate_object then null;
+end $$;
+
 create table if not exists tische (
   id integer primary key,
-  name text not null
+  name text not null,
+  bereich tisch_bereich not null
 );
 
 alter table tische enable row level security;
@@ -50,8 +57,8 @@ alter table bestellpositionen enable row level security;
 create index if not exists bestellpositionen_session_idx
   on bestellpositionen (session_id);
 
--- 12 Tische seeden (wie im echten Lokal).
-insert into tische (id, name)
-select i, 'Tisch ' || i
-from generate_series(1, 12) as i
+-- 24 Tische seeden: 1–15 drinnen, 16–24 Terrasse (wie im echten Lokal).
+insert into tische (id, name, bereich)
+select i, 'Tisch ' || i, case when i <= 15 then 'drinnen' else 'terrasse' end::tisch_bereich
+from generate_series(1, 24) as i
 on conflict (id) do nothing;
