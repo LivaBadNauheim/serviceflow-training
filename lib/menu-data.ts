@@ -1,12 +1,18 @@
 // Trainings-Daten – übernommen aus der echten Liva-Speisekarte (liva-bad-nauheim/lib/menu-data.ts).
 // Nur Name, Preis und Gruppe, ohne Beschreibungen/Allergene – für die Kassen-Simulation reicht das.
 
+export type Extra = { name: string; aufpreis: number }
+
 export type PosItem = {
   id: string
   name: string
   preis: number
   gruppe: 'essen' | 'trinken'
   kategorie: string
+  // Zusatzoptionen (Milchalternativen, Sirup, Topping …), wie am echten
+  // Orderman – nur bei Artikeln hinterlegt, bei denen sie auch real
+  // existieren. Noch nicht für alle Artikel gepflegt, siehe README.
+  extras?: Extra[]
 }
 
 export const items: PosItem[] = [
@@ -414,7 +420,8 @@ export const items: PosItem[] = [
     "name": "Spaghetti mit Tomatensoße",
     "preis": 12.5,
     "gruppe": "essen",
-    "kategorie": "Pasta"
+    "kategorie": "Pasta",
+    "extras": [{ "name": "mit Burrata", "aufpreis": 3.5 }]
   },
   {
     "id": "item-59",
@@ -631,56 +638,120 @@ export const items: PosItem[] = [
     "name": "Espresso",
     "preis": 2.5,
     "gruppe": "trinken",
-    "kategorie": "Coffee, Iced & Milk"
+    "kategorie": "Coffee, Iced & Milk",
+    "extras": [
+      { "name": "Hafer", "aufpreis": 0.5 },
+      { "name": "decaf", "aufpreis": 0 },
+      { "name": "Lactosefrei", "aufpreis": 0.5 },
+      { "name": "Vanille", "aufpreis": 1 },
+      { "name": "Kokos", "aufpreis": 1 },
+      { "name": "Karamel", "aufpreis": 1 }
+    ]
   },
   {
     "id": "item-90",
     "name": "Americano (klein)",
     "preis": 3,
     "gruppe": "trinken",
-    "kategorie": "Coffee, Iced & Milk"
+    "kategorie": "Coffee, Iced & Milk",
+    "extras": [
+      { "name": "Hafer", "aufpreis": 0.5 },
+      { "name": "decaf", "aufpreis": 0 },
+      { "name": "Lactosefrei", "aufpreis": 0.5 },
+      { "name": "Vanille", "aufpreis": 1 },
+      { "name": "Kokos", "aufpreis": 1 },
+      { "name": "Karamel", "aufpreis": 1 }
+    ]
   },
   {
     "id": "item-91",
     "name": "Americano (groß)",
     "preis": 4,
     "gruppe": "trinken",
-    "kategorie": "Coffee, Iced & Milk"
+    "kategorie": "Coffee, Iced & Milk",
+    "extras": [
+      { "name": "Hafer", "aufpreis": 0.5 },
+      { "name": "decaf", "aufpreis": 0 },
+      { "name": "Lactosefrei", "aufpreis": 0.5 },
+      { "name": "Vanille", "aufpreis": 1 },
+      { "name": "Kokos", "aufpreis": 1 },
+      { "name": "Karamel", "aufpreis": 1 }
+    ]
   },
   {
     "id": "item-92",
     "name": "Cappuccino (klein)",
     "preis": 3.5,
     "gruppe": "trinken",
-    "kategorie": "Coffee, Iced & Milk"
+    "kategorie": "Coffee, Iced & Milk",
+    "extras": [
+      { "name": "Hafer", "aufpreis": 0.5 },
+      { "name": "decaf", "aufpreis": 0 },
+      { "name": "Lactosefrei", "aufpreis": 0.5 },
+      { "name": "Vanille", "aufpreis": 1 },
+      { "name": "Kokos", "aufpreis": 1 },
+      { "name": "Karamel", "aufpreis": 1 }
+    ]
   },
   {
     "id": "item-93",
     "name": "Cappuccino (groß)",
     "preis": 5,
     "gruppe": "trinken",
-    "kategorie": "Coffee, Iced & Milk"
+    "kategorie": "Coffee, Iced & Milk",
+    "extras": [
+      { "name": "Hafer", "aufpreis": 0.5 },
+      { "name": "decaf", "aufpreis": 0 },
+      { "name": "Lactosefrei", "aufpreis": 0.5 },
+      { "name": "Vanille", "aufpreis": 1 },
+      { "name": "Kokos", "aufpreis": 1 },
+      { "name": "Karamel", "aufpreis": 1 }
+    ]
   },
   {
     "id": "item-94",
     "name": "Latte Macchiato",
     "preis": 4,
     "gruppe": "trinken",
-    "kategorie": "Coffee, Iced & Milk"
+    "kategorie": "Coffee, Iced & Milk",
+    "extras": [
+      { "name": "Hafer", "aufpreis": 0.5 },
+      { "name": "decaf", "aufpreis": 0 },
+      { "name": "Lactosefrei", "aufpreis": 0.5 },
+      { "name": "Vanille", "aufpreis": 1 },
+      { "name": "Kokos", "aufpreis": 1 },
+      { "name": "Karamel", "aufpreis": 1 }
+    ]
   },
   {
     "id": "item-95",
     "name": "Milchkaffee",
     "preis": 4,
     "gruppe": "trinken",
-    "kategorie": "Coffee, Iced & Milk"
+    "kategorie": "Coffee, Iced & Milk",
+    "extras": [
+      { "name": "Hafer", "aufpreis": 0.5 },
+      { "name": "decaf", "aufpreis": 0 },
+      { "name": "Lactosefrei", "aufpreis": 0.5 },
+      { "name": "Vanille", "aufpreis": 1 },
+      { "name": "Kokos", "aufpreis": 1 },
+      { "name": "Karamel", "aufpreis": 1 }
+    ]
   },
   {
     "id": "item-96",
     "name": "Flat White",
     "preis": 4.5,
     "gruppe": "trinken",
-    "kategorie": "Coffee, Iced & Milk"
+    "kategorie": "Coffee, Iced & Milk",
+    "extras": [
+      { "name": "Hafer", "aufpreis": 0.5 },
+      { "name": "decaf", "aufpreis": 0 },
+      { "name": "Lactosefrei", "aufpreis": 0.5 },
+      { "name": "Vanille", "aufpreis": 1 },
+      { "name": "Kokos", "aufpreis": 1 },
+      { "name": "Karamel", "aufpreis": 1 }
+    ]
   },
   {
     "id": "item-97",
