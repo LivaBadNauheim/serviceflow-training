@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Download } from 'lucide-react'
+import { Download, UtensilsCrossed } from 'lucide-react'
 import AppHeader from '@/components/AppHeader'
 import { getRolle } from '@/lib/session'
 import { filterZeitraum, ladeGeschlosseneSessions, ZEITRAUM_LABEL, type Zeitraum } from '@/lib/finanzen'
@@ -29,6 +29,14 @@ export default async function AdminPage() {
       <AppHeader titel="Finanzen" rolle={rolle!} zurueck="/tische" />
 
       <main className="space-y-4 p-4">
+        <Link
+          href="/admin/artikel"
+          className="flex items-center gap-2 rounded-2xl bg-card p-4 text-sm font-medium active:bg-border"
+        >
+          <UtensilsCrossed className="h-4 w-4 text-accent" />
+          Artikel verwalten
+        </Link>
+
         <div className="grid grid-cols-1 gap-3">
           {abschluesse.map((a) => (
             <AbschlussKarte key={a.zeitraum} zeitraum={a.zeitraum} summe={a.summe} anzahl={a.anzahl} />

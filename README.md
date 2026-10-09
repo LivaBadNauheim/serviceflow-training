@@ -6,10 +6,13 @@ Smartphone (keine responsive Desktop-Ansicht), mit zwei PIN-geschützten
 Rollen (User/Admin) und einem Admin-Finanzbereich (Tages-/Wochen-/
 Monatsabschluss).
 
-Die Speise-/Getränkekarte (`lib/menu-data.ts`) ist aus der echten
-Liva-Seite übernommen, damit das Training realistisch ist. Es ist aber ein
-komplett eigenständiges Projekt mit eigener Datenbank – es greift nicht auf
-echte Liva-Daten zu und beeinflusst sie nicht.
+Die Speise-/Getränkekarte startete als Übernahme aus der echten Liva-Seite,
+damit das Training realistisch ist. Es ist aber ein komplett eigenständiges
+Projekt mit eigener Datenbank – es greift nicht auf echte Liva-Daten zu und
+beeinflusst sie nicht. Der Katalog (Artikelgruppen, Artikel, Preise,
+Extras) liegt inzwischen in der Datenbank und lässt sich im Admin-Bereich
+unter „Artikel verwalten" (`/admin/artikel`) anlegen, bearbeiten und
+löschen – ohne Code anzufassen.
 
 ## Setup
 
@@ -23,11 +26,15 @@ ausführen:
 supabase/migrations/0001_init.sql
 supabase/migrations/0002_bonniert.sql
 supabase/migrations/0003_gruppe.sql
+supabase/migrations/0004_artikel_katalog.sql
+supabase/migrations/0005_artikel_seed.sql
 ```
 
 Das legt die Tabellen an, seedet 24 Tische (1–15 drinnen, 16–24 Terrasse),
-ergänzt die Bonnieren-Nachverfolgung und merkt sich pro Position, ob es
-Essen oder ein Getränk ist (für die Drucker-Zuordnung, siehe Schritt 5).
+ergänzt die Bonnieren-Nachverfolgung, merkt sich pro Position, ob es Essen
+oder ein Getränk ist (für die Drucker-Zuordnung, siehe Schritt 5), legt den
+Artikel-Katalog (Gruppen/Artikel/Extras) an und füllt ihn einmalig mit dem
+bisherigen Trainingsmenü als Startbestand.
 
 ### 2. Umgebungsvariablen
 
@@ -68,7 +75,7 @@ Es gibt **zwei physische Drucker** wie im echten Betrieb: einen an der
 Theke für Getränke, einen in der Küche für Essen (beide Epson TM-m30III).
 Im Interface gibt es trotzdem nur **einen** Bonnieren-Knopf – das System
 schickt jede Position automatisch an den passenden Drucker, je nachdem ob
-sie in `lib/menu-data.ts` als `essen` oder `trinken` eingetragen ist. Sind
+der Artikel als `essen` oder `trinken` angelegt ist. Sind
 auf einem Bon beide Gruppen dabei (z. B. ein Essen und ein Getränk am
 selben Tisch), wird automatisch an beide Drucker gedruckt.
 
@@ -126,8 +133,10 @@ Mal neu hinzugefügten Positionen (nachverfolgt über `bonniert_at` in
   Summe, Bonnieren, Abrechnen.
 - `app/admin` – nur für Rolle "admin": Tages-/Wochen-/Monatsabschluss,
   Belege löschen, Excel-Export.
+- `app/admin/artikel` – Artikelgruppen, Artikel und Extras anlegen,
+  bearbeiten und löschen.
 - `proxy.ts` – schützt alle Routen, Admin-Routen zusätzlich nach Rolle.
-- `lib/menu-data.ts` – Trainings-Speisekarte (generiert aus der echten
-  Karte, siehe Kommentar in der Datei).
+- `lib/katalog.ts` – lädt den Artikel-Katalog aus der Datenbank (für
+  Kasse und Admin-Verwaltung gemeinsam genutzt).
 - `lib/eposPrint.ts` – Küchenbon-Druck über Epson ePOS-Print beim Bonnieren
   (siehe Setup-Schritt 5).

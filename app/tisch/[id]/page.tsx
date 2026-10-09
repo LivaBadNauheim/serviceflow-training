@@ -2,7 +2,7 @@ import { notFound } from 'next/navigation'
 import { getRolle } from '@/lib/session'
 import { getServiceClient } from '@/lib/supabase/server'
 import { tischOeffnen } from '@/app/actions'
-import { items } from '@/lib/menu-data'
+import { ladeKatalog } from '@/lib/katalog'
 import Kasse from './Kasse'
 
 export const dynamic = 'force-dynamic'
@@ -20,11 +20,10 @@ export default async function TischPage({ params }: { params: Promise<{ id: stri
 
   const sessionId = await tischOeffnen(tischId)
 
-  const { data: positionen } = await supabase
-    .from('bestellpositionen')
-    .select('id, name, preis')
-    .eq('session_id', sessionId)
-    .order('erstellt_at')
+  const [{ data: positionen }, gruppen] = await Promise.all([
+    supabase.from('bestellpositionen').select('id, name, preis').eq('session_id', sessionId).order('erstellt_at'),
+    ladeKatalog(),
+  ])
 
   return (
     <Kasse
@@ -32,7 +31,7 @@ export default async function TischPage({ params }: { params: Promise<{ id: stri
       sessionId={sessionId}
       rolle={rolle!}
       anfangsPositionen={(positionen ?? []).map((p) => ({ ...p, preis: Number(p.preis) }))}
-      items={items}
+      gruppen={gruppen}
     />
   )
 }

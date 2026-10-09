@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Folder, Minus, Printer } from 'lucide-react'
 import AppHeader from '@/components/AppHeader'
 import { positionEntfernen, positionenBonnieren, positionHinzufuegen, tischAbrechnen } from '@/app/actions'
 import { druckeBon, druckerKonfiguriert } from '@/lib/eposPrint'
-import type { PosItem } from '@/lib/menu-data'
+import type { Artikel, ArtikelGruppe } from '@/lib/katalog'
 import type { Rolle } from '@/lib/auth'
 import { cn, formatPreis } from '@/lib/utils'
 
@@ -35,18 +35,18 @@ export default function Kasse({
   sessionId,
   rolle,
   anfangsPositionen,
-  items,
+  gruppen,
 }: {
   tischName: string
   sessionId: string
   rolle: Rolle
   anfangsPositionen: Position[]
-  items: PosItem[]
+  gruppen: ArtikelGruppe[]
 }) {
   const [gruppe, setGruppe] = useState<'essen' | 'trinken'>('essen')
   const [ansicht, setAnsicht] = useState<Ansicht>('kategorien')
-  const [aktiveKategorie, setAktiveKategorie] = useState<string | null>(null)
-  const [aktivesItem, setAktivesItem] = useState<PosItem | null>(null)
+  const [aktiveKategorieId, setAktiveKategorieId] = useState<string | null>(null)
+  const [aktivesItem, setAktivesItem] = useState<Artikel | null>(null)
   const [ausgewaehlteExtras, setAusgewaehlteExtras] = useState<Set<string>>(new Set())
   const [kommentar, setKommentar] = useState('')
 
@@ -56,34 +56,23 @@ export default function Kasse({
   const [bonnierenPending, startBonnieren] = useTransition()
   const [bonnierenFehler, setBonnierenFehler] = useState<string | null>(null)
 
-  const kategorien = useMemo(() => {
-    const gesehen = new Set<string>()
-    const liste: string[] = []
-    for (const item of items) {
-      if (item.gruppe !== gruppe) continue
-      if (!gesehen.has(item.kategorie)) {
-        gesehen.add(item.kategorie)
-        liste.push(item.kategorie)
-      }
-    }
-    return liste
-  }, [gruppe, items])
+  const kategorien = useMemo(() => gruppen.filter((g) => g.gruppe === gruppe), [gruppe, gruppen])
 
-  const itemsInKategorie = useMemo(() => {
-    if (!aktiveKategorie) return []
-    return items.filter((i) => i.gruppe === gruppe && i.kategorie === aktiveKategorie)
-  }, [gruppe, items, aktiveKategorie])
+  const aktiveKategorie = useMemo(
+    () => kategorien.find((k) => k.id === aktiveKategorieId) ?? null,
+    [kategorien, aktiveKategorieId]
+  )
 
   const summe = positionen.reduce((acc, p) => acc + p.preis, 0)
 
   function gruppeWechseln(neu: 'essen' | 'trinken') {
     setGruppe(neu)
     setAnsicht('kategorien')
-    setAktiveKategorie(null)
+    setAktiveKategorieId(null)
   }
 
-  function kategorieOeffnen(kategorie: string) {
-    setAktiveKategorie(kategorie)
+  function kategorieOeffnen(kategorieId: string) {
+    setAktiveKategorieId(kategorieId)
     setAnsicht('items')
   }
 
@@ -94,7 +83,7 @@ export default function Kasse({
     })
   }
 
-  function extrasOeffnen(item: PosItem) {
+  function extrasOeffnen(item: Artikel) {
     setAktivesItem(item)
     setAusgewaehlteExtras(new Set())
     setKommentar('')
@@ -112,7 +101,7 @@ export default function Kasse({
 
   function mitExtrasAufnehmen() {
     if (!aktivesItem) return
-    const gewaehlteExtras = (aktivesItem.extras ?? []).filter((e) => ausgewaehlteExtras.has(e.name))
+    const gewaehlteExtras = aktivesItem.extras.filter((e) => ausgewaehlteExtras.has(e.name))
     const preis = aktivesItem.preis + gewaehlteExtras.reduce((acc, e) => acc + e.aufpreis, 0)
     const zusatz = gewaehlteExtras.map((e) => e.name).join(', ')
     const name = [aktivesItem.name, zusatz && `(${zusatz})`, kommentar.trim() && `– ${kommentar.trim()}`]
@@ -172,7 +161,7 @@ export default function Kasse({
           className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-muted"
         >
           <ChevronLeft className="h-4 w-4" />
-          {ansicht === 'extras' ? aktiveKategorie : 'Kategorien'}
+          {ansicht === 'extras' ? aktiveKategorie?.name : 'Kategorien'}
         </button>
       )}
 
@@ -183,8 +172,8 @@ export default function Kasse({
               const farbe = KATEGORIE_FARBEN[i % KATEGORIE_FARBEN.length]
               return (
                 <button
-                  key={kategorie}
-                  onClick={() => kategorieOeffnen(kategorie)}
+                  key={kategorie.id}
+                  onClick={() => kategorieOeffnen(kategorie.id)}
                   className={cn(
                     'flex aspect-square flex-col items-center justify-center gap-1 rounded-xl p-2 text-center text-sm font-medium active:scale-95',
                     farbe.bg,
@@ -192,17 +181,17 @@ export default function Kasse({
                   )}
                 >
                   <Folder className="h-5 w-5 opacity-80" />
-                  {kategorie}
+                  {kategorie.name}
                 </button>
               )
             })}
           </div>
         )}
 
-        {ansicht === 'items' && (
+        {ansicht === 'items' && aktiveKategorie && (
           <div className="grid grid-cols-2 gap-2">
-            {itemsInKategorie.map((item) =>
-              item.extras && item.extras.length > 0 ? (
+            {aktiveKategorie.artikel.map((item) =>
+              item.extras.length > 0 ? (
                 <div key={item.id} className="flex overflow-hidden rounded-xl border border-border">
                   <button
                     onClick={() => hinzufuegen(item.name, item.preis)}
@@ -241,7 +230,7 @@ export default function Kasse({
             <p className="mb-4 text-sm text-muted">{formatPreis(aktivesItem.preis)}</p>
 
             <div className="grid grid-cols-3 gap-2">
-              {(aktivesItem.extras ?? []).map((extra) => (
+              {aktivesItem.extras.map((extra) => (
                 <button
                   key={extra.name}
                   onClick={() => extraUmschalten(extra.name)}
