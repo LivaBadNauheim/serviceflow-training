@@ -1,9 +1,10 @@
 'use client'
 
 import { useMemo, useState, useTransition } from 'react'
-import { Minus, Plus } from 'lucide-react'
+import { Minus, Plus, Printer } from 'lucide-react'
 import AppHeader from '@/components/AppHeader'
 import { positionEntfernen, positionHinzufuegen, tischAbrechnen } from '@/app/actions'
+import { druckeBeleg, druckerKonfiguriert } from '@/lib/eposPrint'
 import type { PosItem } from '@/lib/menu-data'
 import type { Rolle } from '@/lib/auth'
 import { cn, formatPreis } from '@/lib/utils'
@@ -27,6 +28,8 @@ export default function Kasse({
   const [positionen, setPositionen] = useState<Position[]>(anfangsPositionen)
   const [pending, startTransition] = useTransition()
   const [abrechnenPending, startAbrechnen] = useTransition()
+  const [druckPending, startDruck] = useTransition()
+  const [druckFehler, setDruckFehler] = useState<string | null>(null)
 
   const nachKategorie = useMemo(() => {
     const gefiltert = items.filter((i) => i.gruppe === gruppe)
@@ -52,6 +55,17 @@ export default function Kasse({
     setPositionen((prev) => prev.filter((p) => p.id !== positionId))
     startTransition(async () => {
       await positionEntfernen(positionId, sessionId)
+    })
+  }
+
+  function drucken() {
+    setDruckFehler(null)
+    startDruck(async () => {
+      try {
+        await druckeBeleg(tischName, positionen, summe)
+      } catch (e) {
+        setDruckFehler(e instanceof Error ? e.message : 'Drucken fehlgeschlagen')
+      }
     })
   }
 
@@ -125,6 +139,23 @@ export default function Kasse({
           <span className="text-sm font-medium text-muted">Summe</span>
           <span className="text-xl font-semibold">{formatPreis(summe)}</span>
         </div>
+
+        {druckerKonfiguriert() && (
+          <>
+            <button
+              disabled={positionen.length === 0 || druckPending}
+              onClick={drucken}
+              className="mb-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-border py-3.5 text-sm font-semibold text-foreground disabled:opacity-40"
+            >
+              <Printer className="h-4 w-4" />
+              {druckPending ? 'Drucke…' : 'Beleg drucken'}
+            </button>
+            {druckFehler && (
+              <p className="mb-2 text-center text-xs text-danger">{druckFehler}</p>
+            )}
+          </>
+        )}
+
         <button
           disabled={positionen.length === 0 || abrechnenPending}
           onClick={() => startAbrechnen(() => tischAbrechnen(sessionId))}
