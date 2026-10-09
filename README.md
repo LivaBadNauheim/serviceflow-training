@@ -22,10 +22,12 @@ ausführen:
 ```
 supabase/migrations/0001_init.sql
 supabase/migrations/0002_bonniert.sql
+supabase/migrations/0003_gruppe.sql
 ```
 
-Das legt die Tabellen an, seedet 24 Tische (1–15 drinnen, 16–24 Terrasse)
-und ergänzt die Bonnieren-Nachverfolgung.
+Das legt die Tabellen an, seedet 24 Tische (1–15 drinnen, 16–24 Terrasse),
+ergänzt die Bonnieren-Nachverfolgung und merkt sich pro Position, ob es
+Essen oder ein Getränk ist (für die Drucker-Zuordnung, siehe Schritt 5).
 
 ### 2. Umgebungsvariablen
 
@@ -58,30 +60,46 @@ npm run dev
 ### 5. Belegdrucker / Bonnieren (optional)
 
 Wie im echten Betrieb gibt es zwei getrennte Schritte: **Bonnieren** (die
-Bestellung an die Küche schicken/drucken) und **Abrechnen** (den Tisch
-schließen). Das bildet den tatsächlichen Ablauf mit Orderbird/Orderman +
-fester Kasse nach – nur Bonnieren löst einen Druck aus.
+Bestellung drucken) und **Abrechnen** (den Tisch schließen). Das bildet
+den tatsächlichen Ablauf mit Orderbird/Orderman + fester Kasse nach – nur
+Bonnieren löst einen Druck aus.
 
-Getestet mit einem Epson TM-m30III. Der Druck läuft über Epsons
-**ePOS-Print**-Protokoll direkt aus dem Browser des Handys übers WLAN –
-funktioniert deshalb gleich auf iPhone und Android, ohne Bluetooth-Pairing
-pro Gerät. Voraussetzung: Handy und Drucker im selben WLAN.
+Es gibt **zwei physische Drucker** wie im echten Betrieb: einen an der
+Theke für Getränke, einen in der Küche für Essen (beide Epson TM-m30III).
+Im Interface gibt es trotzdem nur **einen** Bonnieren-Knopf – das System
+schickt jede Position automatisch an den passenden Drucker, je nachdem ob
+sie in `lib/menu-data.ts` als `essen` oder `trinken` eingetragen ist. Sind
+auf einem Bon beide Gruppen dabei (z. B. ein Essen und ein Getränk am
+selben Tisch), wird automatisch an beide Drucker gedruckt.
 
-Der Bon ist bewusst ein Küchenbon, kein Rechnungsbeleg: er enthält Gericht/
-Getränk und die Tischnummer gut lesbar, dazu klein einen Zeitstempel – ohne
-Preise. Bonnieren druckt dabei nur die seit dem letzten Mal neu
-hinzugefügten Positionen (nachverfolgt über `bonniert_at` in
+Der Druck läuft über Epsons **ePOS-Print**-Protokoll direkt aus dem
+Browser des Handys übers WLAN – funktioniert deshalb gleich auf iPhone und
+Android, ohne Bluetooth-Pairing pro Gerät. Voraussetzung: Handy und beide
+Drucker im selben WLAN.
+
+Der Bon ist bewusst ein Küchen-/Thekenbon, kein Rechnungsbeleg: er enthält
+Gericht/Getränk und die Tischnummer gut lesbar, dazu klein einen
+Zeitstempel – ohne Preise. Bonnieren druckt dabei nur die seit dem letzten
+Mal neu hinzugefügten Positionen (nachverfolgt über `bonniert_at` in
 `bestellpositionen`, siehe Migration `0002_bonniert.sql`).
 
 **Einrichtung:**
 
-1. Drucker ins WLAN einbinden (über das Display/die Epson-Dienstprogramm-App)
-   und die lokale IP-Adresse notieren (z. B. über einen Selbsttest-Ausdruck
-   oder die Geräteliste im Router).
-2. `NEXT_PUBLIC_DRUCKER_IP` in Vercel auf diese IP setzen. Ohne gesetzte IP
-   wird der "Bonnieren"-Button einfach nicht angezeigt – das Training
-   funktioniert auch ganz ohne Drucker.
-3. **Wichtig – Mixed Content:** Unsere Seite läuft über HTTPS, der Drucker
+1. Beide Drucker ins WLAN einbinden (über das Display/die
+   Epson-Dienstprogramm-App) und jeweils die lokale IP-Adresse notieren
+   (z. B. über einen Selbsttest-Ausdruck oder die Geräteliste im Router).
+2. `NEXT_PUBLIC_DRUCKER_IP_ESSEN` (Küche) und
+   `NEXT_PUBLIC_DRUCKER_IP_GETRAENKE` (Theke) in Vercel auf die jeweilige
+   IP setzen. Ohne beide IPs wird der "Bonnieren"-Button einfach nicht
+   angezeigt – das Training funktioniert auch ganz ohne Drucker. Ist nur
+   eine der beiden gesetzt, erscheint der Knopf trotzdem, aber Bonnieren
+   meldet für die Gruppe ohne konfigurierten Drucker einen Fehler.
+3. **Wichtig – nach dem Setzen/Ändern der IPs in Vercel neu deployen.**
+   `NEXT_PUBLIC_*`-Variablen werden bei Next.js fest in den Browser-Code
+   eingebaut (Build-Zeit, nicht Laufzeit) – nur Eintragen reicht nicht,
+   es braucht danach einen Redeploy (z. B. "Redeploy" im Vercel-Dashboard,
+   ohne Cache).
+4. **Wichtig – Mixed Content:** Unsere Seite läuft über HTTPS, die Drucker
    standardmäßig nur über HTTP im lokalen Netz. Browser blockieren das
    normalerweise. Zwei Möglichkeiten, einmalig pro Handy:
    - Im Browser die Website-Einstellungen für die Kassentraining-Seite
@@ -89,9 +107,9 @@ hinzugefügten Positionen (nachverfolgt über `bonniert_at` in
      (bei Chrome: Antippen des Schloss-/Info-Symbols neben der Adresse).
    - Oder: SSL in der Drucker-Weboberfläche aktivieren (eigenes/
      selbstsigniertes Zertifikat), dann `NEXT_PUBLIC_DRUCKER_HTTPS=true`
-     setzen und die `https://<drucker-ip>`-Adresse einmal im Browser
-     öffnen und das Zertifikat bestätigen.
-4. **Nicht vorab getestet:** Dieser Teil wurde nach Epsons offizieller
+     setzen und die `https://<drucker-ip>`-Adresse von jedem der beiden
+     Drucker einmal im Browser öffnen und das Zertifikat bestätigen.
+5. **Nicht vorab getestet:** Dieser Teil wurde nach Epsons offizieller
    ePOS-Print-Spezifikation gebaut, aber nicht gegen die echte Hardware
    geprüft (kein Zugriff auf das lokale Netz von hier aus möglich). Beim
    ersten echten Testdruck prüfen, ob Formatierung/Zeilenbreite

@@ -7,11 +7,17 @@
 // Tischnummer gut lesbar, der Zeitstempel bewusst klein/unauffällig –
 // Preise stehen bewusst nicht drauf.
 //
+// Zwei physische Drucker wie im echten Betrieb: Theke (Getränke) und
+// Küche (Essen). Ein einziger Bonnieren-Knopf im Interface – die Zuordnung
+// zum richtigen Drucker läuft automatisch über die Gruppe jeder Position.
+//
 // Setup/Hintergrund siehe README – insbesondere der Mixed-Content-Punkt
 // (unsere Seite läuft über HTTPS, der Drucker standardmäßig nur über
 // HTTP im lokalen Netz).
 
 const ZEILENBREITE = 48 // Zeichen pro Zeile bei 80mm-Papier, Schrift A – ggf. anpassen
+
+const DRUCKER_LABEL = { essen: 'Küche', trinken: 'Theke' } as const
 
 function xmlEscape(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -21,9 +27,15 @@ function trennlinie(): string {
   return '-'.repeat(ZEILENBREITE)
 }
 
-export type BonPosition = { name: string; menge: number }
+function druckerIp(gruppe: 'essen' | 'trinken'): string | undefined {
+  return gruppe === 'essen'
+    ? process.env.NEXT_PUBLIC_DRUCKER_IP_ESSEN
+    : process.env.NEXT_PUBLIC_DRUCKER_IP_GETRAENKE
+}
 
-export function buildBonXml(tischName: string, positionen: BonPosition[]): string {
+export type BonPosition = { name: string; menge: number; gruppe: 'essen' | 'trinken' }
+
+export function buildBonXml(tischName: string, positionen: { name: string; menge: number }[]): string {
   const zeitstempel = new Date().toLocaleString('de-DE', {
     timeZone: 'Europe/Berlin',
     day: '2-digit',
@@ -56,17 +68,11 @@ export function buildBonXml(tischName: string, positionen: BonPosition[]): strin
 }
 
 export function druckerKonfiguriert(): boolean {
-  return Boolean(process.env.NEXT_PUBLIC_DRUCKER_IP)
+  return Boolean(process.env.NEXT_PUBLIC_DRUCKER_IP_ESSEN || process.env.NEXT_PUBLIC_DRUCKER_IP_GETRAENKE)
 }
 
-export async function druckeBon(tischName: string, positionen: BonPosition[]): Promise<void> {
-  const ip = process.env.NEXT_PUBLIC_DRUCKER_IP
-  if (!ip) {
-    throw new Error('Keine Drucker-IP konfiguriert (NEXT_PUBLIC_DRUCKER_IP)')
-  }
-
+async function sendeAnDrucker(ip: string, xml: string): Promise<void> {
   const protokoll = process.env.NEXT_PUBLIC_DRUCKER_HTTPS === 'true' ? 'https' : 'http'
-  const xml = buildBonXml(tischName, positionen)
 
   const antwort = await fetch(
     `${protokoll}://${ip}/cgi-bin/epos/service.cgi?devid=local_printer&timeout=10000`,
@@ -81,6 +87,32 @@ export async function druckeBon(tischName: string, positionen: BonPosition[]): P
   )
 
   if (!antwort.ok) {
-    throw new Error(`Drucker antwortete mit Status ${antwort.status}`)
+    throw new Error(`Drucker ${ip} antwortete mit Status ${antwort.status}`)
+  }
+}
+
+export async function druckeBon(tischName: string, positionen: BonPosition[]): Promise<void> {
+  const fehler: string[] = []
+
+  for (const gruppe of ['essen', 'trinken'] as const) {
+    const gefiltert = positionen.filter((p) => p.gruppe === gruppe)
+    if (gefiltert.length === 0) continue
+
+    const ip = druckerIp(gruppe)
+    if (!ip) {
+      fehler.push(`${DRUCKER_LABEL[gruppe]}-Drucker nicht konfiguriert`)
+      continue
+    }
+
+    try {
+      await sendeAnDrucker(ip, buildBonXml(tischName, gefiltert))
+    } catch (e) {
+      const meldung = e instanceof Error ? e.message : 'unbekannter Fehler'
+      fehler.push(`${DRUCKER_LABEL[gruppe]}-Drucker: ${meldung}`)
+    }
+  }
+
+  if (fehler.length > 0) {
+    throw new Error(fehler.join(' / '))
   }
 }

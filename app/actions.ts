@@ -55,12 +55,17 @@ export async function tischOeffnen(tischId: number) {
   return data.id as string
 }
 
-export async function positionHinzufuegen(sessionId: string, name: string, preis: number) {
+export async function positionHinzufuegen(
+  sessionId: string,
+  name: string,
+  preis: number,
+  gruppe: 'essen' | 'trinken'
+) {
   const supabase = getServiceClient()
 
   const { data, error } = await supabase
     .from('bestellpositionen')
-    .insert({ session_id: sessionId, name, preis })
+    .insert({ session_id: sessionId, name, preis, gruppe })
     .select('id, name, preis')
     .single()
 
@@ -98,7 +103,7 @@ export async function positionenBonnieren(sessionId: string) {
 
   const { data: offene, error: selectError } = await supabase
     .from('bestellpositionen')
-    .select('id, name, menge')
+    .select('id, name, menge, gruppe')
     .eq('session_id', sessionId)
     .is('bonniert_at', null)
 
@@ -115,7 +120,11 @@ export async function positionenBonnieren(sessionId: string) {
 
   if (updateError) throw new Error(updateError.message)
 
-  return offene.map((p) => ({ name: p.name as string, menge: p.menge as number }))
+  return offene.map((p) => ({
+    name: p.name as string,
+    menge: p.menge as number,
+    gruppe: p.gruppe as 'essen' | 'trinken',
+  }))
 }
 
 export async function tischAbrechnen(sessionId: string) {

@@ -46,7 +46,7 @@ export default function Kasse({
 
   function hinzufuegen(item: PosItem) {
     startTransition(async () => {
-      const row = await positionHinzufuegen(sessionId, item.name, item.preis)
+      const row = await positionHinzufuegen(sessionId, item.name, item.preis, item.gruppe)
       setPositionen((prev) => [...prev, row])
     })
   }
