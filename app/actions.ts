@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import { createSessionToken, pruefePin, SESSION_COOKIE_NAME, SESSION_MAX_AGE_SECONDS } from '@/lib/auth'
 import { getServiceClient } from '@/lib/supabase/server'
 
@@ -103,4 +104,13 @@ export async function tischAbrechnen(sessionId: string) {
   if (error) throw new Error(error.message)
 
   redirect('/tische')
+}
+
+export async function belegLoeschen(sessionId: string) {
+  const supabase = getServiceClient()
+
+  const { error } = await supabase.from('tisch_sessions').delete().eq('id', sessionId)
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/admin')
 }
