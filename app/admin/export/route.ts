@@ -1,15 +1,8 @@
 import { NextRequest } from 'next/server'
+import * as XLSX from 'xlsx'
 import { getServiceClient } from '@/lib/supabase/server'
 import { filterZeitraum, ladeGeschlosseneSessions, type Zeitraum } from '@/lib/finanzen'
 import { tagesKey } from '@/lib/zeit'
-
-function csvPreis(wert: number): string {
-  return wert.toFixed(2).replace('.', ',')
-}
-
-function csvFeld(wert: string): string {
-  return `"${wert.replace(/"/g, '""')}"`
-}
 
 export async function GET(request: NextRequest) {
   const zeitraumParam = request.nextUrl.searchParams.get('zeitraum')
@@ -21,29 +14,38 @@ export async function GET(request: NextRequest) {
   const { data: tische } = await supabase.from('tische').select('id, bereich')
   const bereichNachTisch = new Map((tische ?? []).map((t) => [t.id as number, t.bereich as string]))
 
-  const zeilen = [['Tisch', 'Bereich', 'Datum', 'Uhrzeit', 'Summe (EUR)'].map(csvFeld).join(';')]
+  const zeilen: (string | number)[][] = [['Tisch', 'Bereich', 'Datum', 'Uhrzeit', 'Summe (EUR)']]
 
   for (const s of gefiltert) {
-    zeilen.push(
-      [
-        csvFeld(`Tisch ${s.tischId}`),
-        csvFeld(bereichNachTisch.get(s.tischId) ?? ''),
-        csvFeld(s.geschlossenAt.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })),
-        csvFeld(s.geschlossenAt.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' })),
-        csvFeld(csvPreis(s.summe)),
-      ].join(';')
-    )
+    zeilen.push([
+      `Tisch ${s.tischId}`,
+      bereichNachTisch.get(s.tischId) ?? '',
+      s.geschlossenAt.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' }),
+      s.geschlossenAt.toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin', hour: '2-digit', minute: '2-digit' }),
+      s.summe,
+    ])
   }
 
   const gesamt = gefiltert.reduce((acc, s) => acc + s.summe, 0)
-  zeilen.push(['', '', '', csvFeld('Gesamt'), csvFeld(csvPreis(gesamt))].join(';'))
+  zeilen.push(['', '', '', 'Gesamt', gesamt])
 
-  const csv = '﻿' + zeilen.join('\r\n') + '\r\n'
-  const dateiname = `abschluss-${zeitraum}-${tagesKey(new Date())}.csv`
+  const blatt = XLSX.utils.aoa_to_sheet(zeilen)
+  blatt['!cols'] = [{ wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 10 }, { wch: 14 }]
 
-  return new Response(csv, {
+  for (let zeile = 2; zeile <= zeilen.length; zeile++) {
+    const zelle = blatt[`E${zeile}`]
+    if (zelle) zelle.z = '#,##0.00 €'
+  }
+
+  const arbeitsmappe = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(arbeitsmappe, blatt, 'Abschluss')
+
+  const buffer = XLSX.write(arbeitsmappe, { type: 'buffer', bookType: 'xlsx' }) as Buffer
+  const dateiname = `abschluss-${zeitraum}-${tagesKey(new Date())}.xlsx`
+
+  return new Response(new Uint8Array(buffer), {
     headers: {
-      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'Content-Disposition': `attachment; filename="${dateiname}"`,
     },
   })

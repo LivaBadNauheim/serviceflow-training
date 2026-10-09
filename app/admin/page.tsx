@@ -61,7 +61,7 @@ function AbschlussKarte({
         <p className="text-sm text-muted">{ZEITRAUM_LABEL[zeitraum]}</p>
         <Link
           href={`/admin/export?zeitraum=${zeitraum}`}
-          aria-label={`${ZEITRAUM_LABEL[zeitraum]} als CSV herunterladen`}
+          aria-label={`${ZEITRAUM_LABEL[zeitraum]} als Excel herunterladen`}
           className="text-muted"
         >
           <Download className="h-4 w-4" />
