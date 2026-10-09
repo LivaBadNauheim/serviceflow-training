@@ -78,3 +78,18 @@ export function filterZeitraum(sessions: GeschlosseneSession[], zeitraum: Zeitra
   const dieserMonat = monatsKey(jetzt)
   return sessions.filter((s) => monatsKey(s.geschlossenAt) === dieserMonat)
 }
+
+// Frei wählbarer Zeitraum (z. B. ein einzelner Tag in der Vergangenheit,
+// oder eine Spanne quer über Wochen/Monate hinweg). von/bis als
+// "YYYY-MM-DD", wie sie ein <input type="date"> liefert – als String
+// vergleichbar, weil tagesKey() dasselbe Format verwendet.
+export function filterZeitraumBenutzerdefiniert(
+  sessions: GeschlosseneSession[],
+  von: string,
+  bis: string
+): GeschlosseneSession[] {
+  return sessions.filter((s) => {
+    const tag = tagesKey(s.geschlossenAt)
+    return tag >= von && tag <= bis
+  })
+}

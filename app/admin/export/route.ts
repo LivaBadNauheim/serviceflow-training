@@ -1,15 +1,30 @@
 import { NextRequest } from 'next/server'
 import * as XLSX from 'xlsx'
 import { getServiceClient } from '@/lib/supabase/server'
-import { filterZeitraum, ladeGeschlosseneSessions, ladeVerkaufteArtikel, type Zeitraum } from '@/lib/finanzen'
+import {
+  filterZeitraum,
+  filterZeitraumBenutzerdefiniert,
+  ladeGeschlosseneSessions,
+  ladeVerkaufteArtikel,
+  type Zeitraum,
+} from '@/lib/finanzen'
 import { tagesKey } from '@/lib/zeit'
 
+const DATUM_REGEX = /^\d{4}-\d{2}-\d{2}$/
+
 export async function GET(request: NextRequest) {
-  const zeitraumParam = request.nextUrl.searchParams.get('zeitraum')
+  const params = request.nextUrl.searchParams
+  const von = params.get('von')
+  const bis = params.get('bis')
+  const eigenerZeitraum = von && bis && DATUM_REGEX.test(von) && DATUM_REGEX.test(bis) ? { von, bis } : null
+
+  const zeitraumParam = params.get('zeitraum')
   const zeitraum: Zeitraum = zeitraumParam === 'woche' || zeitraumParam === 'monat' ? zeitraumParam : 'tag'
 
   const [sessions, supabase] = [await ladeGeschlosseneSessions(), getServiceClient()]
-  const gefiltert = filterZeitraum(sessions, zeitraum)
+  const gefiltert = eigenerZeitraum
+    ? filterZeitraumBenutzerdefiniert(sessions, eigenerZeitraum.von, eigenerZeitraum.bis)
+    : filterZeitraum(sessions, zeitraum)
 
   const { data: tische } = await supabase.from('tische').select('id, bereich')
   const bereichNachTisch = new Map((tische ?? []).map((t) => [t.id as number, t.bereich as string]))
@@ -62,7 +77,12 @@ export async function GET(request: NextRequest) {
   XLSX.utils.book_append_sheet(arbeitsmappe, artikelBlatt, 'Verkaufte Artikel')
 
   const buffer = XLSX.write(arbeitsmappe, { type: 'buffer', bookType: 'xlsx' }) as Buffer
-  const dateiname = `abschluss-${zeitraum}-${tagesKey(new Date())}.xlsx`
+  const dateiTeil = eigenerZeitraum
+    ? eigenerZeitraum.von === eigenerZeitraum.bis
+      ? eigenerZeitraum.von
+      : `${eigenerZeitraum.von}_bis_${eigenerZeitraum.bis}`
+    : `${zeitraum}-${tagesKey(new Date())}`
+  const dateiname = `abschluss-${dateiTeil}.xlsx`
 
   return new Response(new Uint8Array(buffer), {
     headers: {

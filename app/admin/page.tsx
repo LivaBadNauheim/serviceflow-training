@@ -5,6 +5,7 @@ import { getRolle } from '@/lib/session'
 import { filterZeitraum, ladeGeschlosseneSessions, ZEITRAUM_LABEL, type Zeitraum } from '@/lib/finanzen'
 import { formatPreis } from '@/lib/utils'
 import BelegListe from './BelegListe'
+import ZeitraumExport from './ZeitraumExport'
 
 export const dynamic = 'force-dynamic'
 
@@ -42,6 +43,8 @@ export default async function AdminPage() {
             <AbschlussKarte key={a.zeitraum} zeitraum={a.zeitraum} summe={a.summe} anzahl={a.anzahl} />
           ))}
         </div>
+
+        <ZeitraumExport />
 
         <div>
           <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
