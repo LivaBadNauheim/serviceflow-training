@@ -16,13 +16,16 @@ echte Liva-Daten zu und beeinflusst sie nicht.
 ### 1. Supabase-Projekt anlegen
 
 Ein **neues, separates** Supabase-Projekt erstellen (nicht das der echten
-Liva-Seite verwenden). Danach im SQL-Editor die Migration ausführen:
+Liva-Seite verwenden). Danach im SQL-Editor der Reihe nach beide Migrationen
+ausführen:
 
 ```
 supabase/migrations/0001_init.sql
+supabase/migrations/0002_bonniert.sql
 ```
 
-Das legt die Tabellen an und seedet 24 Tische (1–15 drinnen, 16–24 Terrasse).
+Das legt die Tabellen an, seedet 24 Tische (1–15 drinnen, 16–24 Terrasse)
+und ergänzt die Bonnieren-Nachverfolgung.
 
 ### 2. Umgebungsvariablen
 
@@ -52,12 +55,23 @@ npm run dev
 - Die App selbst ist zusätzlich durch den PIN-Login geschützt und sendet
   `noindex` (keine Suchmaschinen-Indexierung).
 
-### 5. Belegdrucker (optional)
+### 5. Belegdrucker / Bonnieren (optional)
+
+Wie im echten Betrieb gibt es zwei getrennte Schritte: **Bonnieren** (die
+Bestellung an die Küche schicken/drucken) und **Abrechnen** (den Tisch
+schließen). Das bildet den tatsächlichen Ablauf mit Orderbird/Orderman +
+fester Kasse nach – nur Bonnieren löst einen Druck aus.
 
 Getestet mit einem Epson TM-m30III. Der Druck läuft über Epsons
 **ePOS-Print**-Protokoll direkt aus dem Browser des Handys übers WLAN –
 funktioniert deshalb gleich auf iPhone und Android, ohne Bluetooth-Pairing
 pro Gerät. Voraussetzung: Handy und Drucker im selben WLAN.
+
+Der Bon ist bewusst ein Küchenbon, kein Rechnungsbeleg: er enthält Gericht/
+Getränk und die Tischnummer gut lesbar, dazu klein einen Zeitstempel – ohne
+Preise. Bonnieren druckt dabei nur die seit dem letzten Mal neu
+hinzugefügten Positionen (nachverfolgt über `bonniert_at` in
+`bestellpositionen`, siehe Migration `0002_bonniert.sql`).
 
 **Einrichtung:**
 
@@ -65,7 +79,7 @@ pro Gerät. Voraussetzung: Handy und Drucker im selben WLAN.
    und die lokale IP-Adresse notieren (z. B. über einen Selbsttest-Ausdruck
    oder die Geräteliste im Router).
 2. `NEXT_PUBLIC_DRUCKER_IP` in Vercel auf diese IP setzen. Ohne gesetzte IP
-   wird der "Beleg drucken"-Button einfach nicht angezeigt – das Training
+   wird der "Bonnieren"-Button einfach nicht angezeigt – das Training
    funktioniert auch ganz ohne Drucker.
 3. **Wichtig – Mixed Content:** Unsere Seite läuft über HTTPS, der Drucker
    standardmäßig nur über HTTP im lokalen Netz. Browser blockieren das
@@ -91,10 +105,11 @@ pro Gerät. Voraussetzung: Handy und Drucker im selben WLAN.
 - `app/login` – PIN-Eingabe, setzt ein signiertes Cookie mit der Rolle.
 - `app/tische` – Übersicht aller Tische (frei/belegt + Summe).
 - `app/tisch/[id]` – Kassenbildschirm: Essen/Getränke-Tabs, Bestellung,
-  Summe, Abrechnen.
+  Summe, Bonnieren, Abrechnen.
 - `app/admin` – nur für Rolle "admin": Tages-/Wochen-/Monatsabschluss,
   Belege löschen, Excel-Export.
 - `proxy.ts` – schützt alle Routen, Admin-Routen zusätzlich nach Rolle.
 - `lib/menu-data.ts` – Trainings-Speisekarte (generiert aus der echten
   Karte, siehe Kommentar in der Datei).
-- `lib/eposPrint.ts` – Belegdruck über Epson ePOS-Print (siehe Setup-Schritt 5).
+- `lib/eposPrint.ts` – Küchenbon-Druck über Epson ePOS-Print beim Bonnieren
+  (siehe Setup-Schritt 5).

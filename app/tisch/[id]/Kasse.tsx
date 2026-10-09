@@ -3,8 +3,8 @@
 import { useMemo, useState, useTransition } from 'react'
 import { Minus, Plus, Printer } from 'lucide-react'
 import AppHeader from '@/components/AppHeader'
-import { positionEntfernen, positionHinzufuegen, tischAbrechnen } from '@/app/actions'
-import { druckeBeleg, druckerKonfiguriert } from '@/lib/eposPrint'
+import { positionEntfernen, positionenBonnieren, positionHinzufuegen, tischAbrechnen } from '@/app/actions'
+import { druckeBon, druckerKonfiguriert } from '@/lib/eposPrint'
 import type { PosItem } from '@/lib/menu-data'
 import type { Rolle } from '@/lib/auth'
 import { cn, formatPreis } from '@/lib/utils'
@@ -28,8 +28,8 @@ export default function Kasse({
   const [positionen, setPositionen] = useState<Position[]>(anfangsPositionen)
   const [pending, startTransition] = useTransition()
   const [abrechnenPending, startAbrechnen] = useTransition()
-  const [druckPending, startDruck] = useTransition()
-  const [druckFehler, setDruckFehler] = useState<string | null>(null)
+  const [bonnierenPending, startBonnieren] = useTransition()
+  const [bonnierenFehler, setBonnierenFehler] = useState<string | null>(null)
 
   const nachKategorie = useMemo(() => {
     const gefiltert = items.filter((i) => i.gruppe === gruppe)
@@ -58,13 +58,18 @@ export default function Kasse({
     })
   }
 
-  function drucken() {
-    setDruckFehler(null)
-    startDruck(async () => {
+  function bonnieren() {
+    setBonnierenFehler(null)
+    startBonnieren(async () => {
       try {
-        await druckeBeleg(tischName, positionen, summe)
+        const neue = await positionenBonnieren(sessionId)
+        if (neue.length === 0) {
+          setBonnierenFehler('Keine neuen Positionen zum Bonnieren')
+          return
+        }
+        await druckeBon(tischName, neue)
       } catch (e) {
-        setDruckFehler(e instanceof Error ? e.message : 'Drucken fehlgeschlagen')
+        setBonnierenFehler(e instanceof Error ? e.message : 'Bonnieren fehlgeschlagen')
       }
     })
   }
@@ -143,15 +148,15 @@ export default function Kasse({
         {druckerKonfiguriert() && (
           <>
             <button
-              disabled={positionen.length === 0 || druckPending}
-              onClick={drucken}
+              disabled={positionen.length === 0 || bonnierenPending}
+              onClick={bonnieren}
               className="mb-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-border py-3.5 text-sm font-semibold text-foreground disabled:opacity-40"
             >
               <Printer className="h-4 w-4" />
-              {druckPending ? 'Drucke…' : 'Beleg drucken'}
+              {bonnierenPending ? 'Bonniere…' : 'Bonnieren'}
             </button>
-            {druckFehler && (
-              <p className="mb-2 text-center text-xs text-danger">{druckFehler}</p>
+            {bonnierenFehler && (
+              <p className="mb-2 text-center text-xs text-danger">{bonnierenFehler}</p>
             )}
           </>
         )}

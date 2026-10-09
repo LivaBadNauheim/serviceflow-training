@@ -93,6 +93,31 @@ async function summeAktualisieren(sessionId: string) {
   await supabase.from('tisch_sessions').update({ summe }).eq('id', sessionId)
 }
 
+export async function positionenBonnieren(sessionId: string) {
+  const supabase = getServiceClient()
+
+  const { data: offene, error: selectError } = await supabase
+    .from('bestellpositionen')
+    .select('id, name, menge')
+    .eq('session_id', sessionId)
+    .is('bonniert_at', null)
+
+  if (selectError) throw new Error(selectError.message)
+  if (!offene || offene.length === 0) return []
+
+  const { error: updateError } = await supabase
+    .from('bestellpositionen')
+    .update({ bonniert_at: new Date().toISOString() })
+    .in(
+      'id',
+      offene.map((p) => p.id)
+    )
+
+  if (updateError) throw new Error(updateError.message)
+
+  return offene.map((p) => ({ name: p.name as string, menge: p.menge as number }))
+}
+
 export async function tischAbrechnen(sessionId: string) {
   const supabase = getServiceClient()
 
