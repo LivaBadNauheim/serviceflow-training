@@ -79,7 +79,34 @@ export async function positionHinzufuegen(
 export async function positionEntfernen(positionId: string, sessionId: string) {
   const supabase = getServiceClient()
 
+  const { data: position } = await supabase
+    .from('bestellpositionen')
+    .select('bonniert_at')
+    .eq('id', positionId)
+    .single()
+
+  if (position?.bonniert_at) {
+    throw new Error('Bereits bonnierte Positionen können nur noch storniert werden')
+  }
+
   const { error } = await supabase.from('bestellpositionen').delete().eq('id', positionId)
+  if (error) throw new Error(error.message)
+
+  await summeAktualisieren(sessionId)
+}
+
+// Einmal bonniert (Küche/Theke hat die Position schon gesehen), lässt sich
+// eine Position nicht mehr einfach löschen – nur noch stornieren. Die Zeile
+// bleibt als Beleg erhalten und zählt nicht mehr in die Tischsumme, taucht
+// aber im Admin-Export als Stornierung auf.
+export async function positionStornieren(positionId: string, sessionId: string) {
+  const supabase = getServiceClient()
+
+  const { error } = await supabase
+    .from('bestellpositionen')
+    .update({ storniert_at: new Date().toISOString() })
+    .eq('id', positionId)
+
   if (error) throw new Error(error.message)
 
   await summeAktualisieren(sessionId)
@@ -92,6 +119,7 @@ async function summeAktualisieren(sessionId: string) {
     .from('bestellpositionen')
     .select('preis, menge')
     .eq('session_id', sessionId)
+    .is('storniert_at', null)
 
   const summe = (positionen ?? []).reduce((acc, p) => acc + Number(p.preis) * p.menge, 0)
 

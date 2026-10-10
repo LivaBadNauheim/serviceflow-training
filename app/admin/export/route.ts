@@ -5,6 +5,7 @@ import {
   filterZeitraum,
   filterZeitraumBenutzerdefiniert,
   ladeGeschlosseneSessions,
+  ladeStornierungen,
   ladeVerkaufteArtikel,
   type Zeitraum,
 } from '@/lib/finanzen'
@@ -72,9 +73,39 @@ export async function GET(request: NextRequest) {
     if (summe) summe.z = '#,##0.00 €'
   }
 
+  const stornoZeilen: (string | number)[][] = [['Tisch', 'Artikel', 'Zeitpunkt', 'Preis (EUR)']]
+  const stornierungen = await ladeStornierungen(gefiltert)
+
+  for (const s of stornierungen) {
+    stornoZeilen.push([
+      `Tisch ${s.tischId}`,
+      s.name,
+      s.storniertAt.toLocaleString('de-DE', {
+        timeZone: 'Europe/Berlin',
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      s.preis,
+    ])
+  }
+
+  const stornoGesamt = stornierungen.reduce((acc, s) => acc + s.preis, 0)
+  stornoZeilen.push(['', '', 'Gesamt', stornoGesamt])
+
+  const stornoBlatt = XLSX.utils.aoa_to_sheet(stornoZeilen)
+  stornoBlatt['!cols'] = [{ wch: 10 }, { wch: 32 }, { wch: 16 }, { wch: 14 }]
+
+  for (let zeile = 2; zeile <= stornoZeilen.length; zeile++) {
+    const preis = stornoBlatt[`D${zeile}`]
+    if (preis) preis.z = '#,##0.00 €'
+  }
+
   const arbeitsmappe = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(arbeitsmappe, blatt, 'Abschluss')
   XLSX.utils.book_append_sheet(arbeitsmappe, artikelBlatt, 'Verkaufte Artikel')
+  XLSX.utils.book_append_sheet(arbeitsmappe, stornoBlatt, 'Stornierungen')
 
   const buffer = XLSX.write(arbeitsmappe, { type: 'buffer', bookType: 'xlsx' }) as Buffer
   const dateiTeil = eigenerZeitraum

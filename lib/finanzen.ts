@@ -44,7 +44,11 @@ export async function ladeVerkaufteArtikel(sessionIds: string[]): Promise<Verkau
   if (sessionIds.length === 0) return []
 
   const supabase = getServiceClient()
-  const { data } = await supabase.from('bestellpositionen').select('name, preis, menge').in('session_id', sessionIds)
+  const { data } = await supabase
+    .from('bestellpositionen')
+    .select('name, preis, menge')
+    .in('session_id', sessionIds)
+    .is('storniert_at', null)
 
   const nachArtikel = new Map<string, VerkaufteArtikelZeile>()
   for (const p of data ?? []) {
@@ -60,6 +64,32 @@ export async function ladeVerkaufteArtikel(sessionIds: string[]): Promise<Verkau
   }
 
   return Array.from(nachArtikel.values()).sort((a, b) => b.menge - a.menge)
+}
+
+export type StornierteZeile = { tischId: number; name: string; preis: number; storniertAt: Date }
+
+// Einzeln aufgeführte Stornierungen (bonnierte, aber später stornierte
+// Positionen) für den Admin-Export – damit sichtbar bleibt, wer was
+// storniert hat, statt dass die Zahl einfach aus der Summe verschwindet.
+export async function ladeStornierungen(sessions: GeschlosseneSession[]): Promise<StornierteZeile[]> {
+  if (sessions.length === 0) return []
+
+  const supabase = getServiceClient()
+  const tischNachSession = new Map(sessions.map((s) => [s.id, s.tischId]))
+
+  const { data } = await supabase
+    .from('bestellpositionen')
+    .select('name, preis, storniert_at, session_id')
+    .in('session_id', sessions.map((s) => s.id))
+    .not('storniert_at', 'is', null)
+    .order('storniert_at', { ascending: false })
+
+  return (data ?? []).map((p) => ({
+    tischId: tischNachSession.get(p.session_id as string) ?? 0,
+    name: p.name as string,
+    preis: Number(p.preis),
+    storniertAt: new Date(p.storniert_at as string),
+  }))
 }
 
 export function filterZeitraum(sessions: GeschlosseneSession[], zeitraum: Zeitraum): GeschlosseneSession[] {

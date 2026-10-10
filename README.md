@@ -28,13 +28,15 @@ supabase/migrations/0002_bonniert.sql
 supabase/migrations/0003_gruppe.sql
 supabase/migrations/0004_artikel_katalog.sql
 supabase/migrations/0005_artikel_seed.sql
+supabase/migrations/0006_stornieren.sql
 ```
 
 Das legt die Tabellen an, seedet 24 Tische (1–15 drinnen, 16–24 Terrasse),
 ergänzt die Bonnieren-Nachverfolgung, merkt sich pro Position, ob es Essen
 oder ein Getränk ist (für die Drucker-Zuordnung, siehe Schritt 5), legt den
-Artikel-Katalog (Gruppen/Artikel/Extras) an und füllt ihn einmalig mit dem
-bisherigen Trainingsmenü als Startbestand.
+Artikel-Katalog (Gruppen/Artikel/Extras) an, füllt ihn einmalig mit dem
+bisherigen Trainingsmenü als Startbestand und ergänzt die Stornierungs-
+Nachverfolgung für bereits bonnierte Positionen.
 
 ### 2. Umgebungsvariablen
 
@@ -130,10 +132,13 @@ Mal neu hinzugefügten Positionen (nachverfolgt über `bonniert_at` in
 - `app/login` – PIN-Eingabe, setzt ein signiertes Cookie mit der Rolle.
 - `app/tische` – Übersicht aller Tische (frei/belegt + Summe).
 - `app/tisch/[id]` – Kassenbildschirm: Essen/Getränke-Tabs, Bestellung,
-  Summe, Bonnieren, Abrechnen.
+  Summe, Bonnieren, Abrechnen. Bereits bonnierte Positionen lassen sich nur
+  noch stornieren, nicht mehr einfach löschen.
 - `app/admin` – nur für Rolle "admin": Tages-/Wochen-/Monatsabschluss,
-  Belege löschen, Excel-Export (zwei Blätter: "Abschluss" pro Tisch und
-  "Verkaufte Artikel" als Menge/Einzelpreis/Summe je Artikel).
+  Belege löschen, Excel-Export (drei Blätter: "Abschluss" pro Tisch,
+  "Verkaufte Artikel" als Menge/Einzelpreis/Summe je Artikel, und
+  "Stornierungen" für nachträglich stornierte, bereits bonnierte
+  Positionen).
 - `app/admin/artikel` – Artikelgruppen, Artikel und Extras anlegen,
   bearbeiten und löschen.
 - `proxy.ts` – schützt alle Routen, Admin-Routen zusätzlich nach Rolle.

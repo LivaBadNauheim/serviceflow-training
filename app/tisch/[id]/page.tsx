@@ -21,7 +21,12 @@ export default async function TischPage({ params }: { params: Promise<{ id: stri
   const sessionId = await tischOeffnen(tischId)
 
   const [{ data: positionen }, gruppen] = await Promise.all([
-    supabase.from('bestellpositionen').select('id, name, preis').eq('session_id', sessionId).order('erstellt_at'),
+    supabase
+      .from('bestellpositionen')
+      .select('id, name, preis, bonniert_at')
+      .eq('session_id', sessionId)
+      .is('storniert_at', null)
+      .order('erstellt_at'),
     ladeKatalog(),
   ])
 
@@ -30,7 +35,12 @@ export default async function TischPage({ params }: { params: Promise<{ id: stri
       tischName={tisch.name}
       sessionId={sessionId}
       rolle={rolle!}
-      anfangsPositionen={(positionen ?? []).map((p) => ({ ...p, preis: Number(p.preis) }))}
+      anfangsPositionen={(positionen ?? []).map((p) => ({
+        id: p.id,
+        name: p.name,
+        preis: Number(p.preis),
+        bonniertAt: p.bonniert_at !== null,
+      }))}
       gruppen={gruppen}
     />
   )

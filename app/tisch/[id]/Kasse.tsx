@@ -3,13 +3,19 @@
 import { useMemo, useState, useTransition } from 'react'
 import { ChevronLeft, ChevronRight, Folder, Minus, Printer } from 'lucide-react'
 import AppHeader from '@/components/AppHeader'
-import { positionEntfernen, positionenBonnieren, positionHinzufuegen, tischAbrechnen } from '@/app/actions'
+import {
+  positionEntfernen,
+  positionenBonnieren,
+  positionHinzufuegen,
+  positionStornieren,
+  tischAbrechnen,
+} from '@/app/actions'
 import { druckeBon, druckerKonfiguriert } from '@/lib/eposPrint'
 import type { Artikel, ArtikelGruppe } from '@/lib/katalog'
 import type { Rolle } from '@/lib/auth'
 import { cn, formatPreis } from '@/lib/utils'
 
-type Position = { id: string; name: string; preis: number }
+type Position = { id: string; name: string; preis: number; bonniertAt: boolean }
 
 // Farben für die Kategorie-Kacheln – rein optisch zur Wiedererkennung wie
 // am echten Orderman, per Reihenfolge der Kategorie zugeordnet (keine
@@ -55,6 +61,7 @@ export default function Kasse({
   const [abrechnenPending, startAbrechnen] = useTransition()
   const [bonnierenPending, startBonnieren] = useTransition()
   const [bonnierenFehler, setBonnierenFehler] = useState<string | null>(null)
+  const [stornierenBestaetigenId, setStornierenBestaetigenId] = useState<string | null>(null)
 
   const kategorien = useMemo(() => gruppen.filter((g) => g.gruppe === gruppe), [gruppe, gruppen])
 
@@ -79,7 +86,7 @@ export default function Kasse({
   function hinzufuegen(name: string, preis: number) {
     startTransition(async () => {
       const row = await positionHinzufuegen(sessionId, name, preis, gruppe)
-      setPositionen((prev) => [...prev, row])
+      setPositionen((prev) => [...prev, { ...row, bonniertAt: false }])
     })
   }
 
@@ -120,6 +127,14 @@ export default function Kasse({
     })
   }
 
+  function stornieren(positionId: string) {
+    setPositionen((prev) => prev.filter((p) => p.id !== positionId))
+    setStornierenBestaetigenId(null)
+    startTransition(async () => {
+      await positionStornieren(positionId, sessionId)
+    })
+  }
+
   function bonnieren() {
     setBonnierenFehler(null)
     startBonnieren(async () => {
@@ -129,6 +144,7 @@ export default function Kasse({
           setBonnierenFehler('Keine neuen Positionen zum Bonnieren')
           return
         }
+        setPositionen((prev) => prev.map((p) => (p.bonniertAt ? p : { ...p, bonniertAt: true })))
         await druckeBon(tischName, neue)
       } catch (e) {
         setBonnierenFehler(e instanceof Error ? e.message : 'Bonnieren fehlgeschlagen')
@@ -282,9 +298,35 @@ export default function Kasse({
                   <span className="text-sm">{p.name}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-sm font-medium">{formatPreis(p.preis)}</span>
-                    <button onClick={() => entfernen(p.id)} aria-label="Entfernen" className="text-muted">
-                      <Minus className="h-4 w-4" />
-                    </button>
+                    {p.bonniertAt ? (
+                      stornierenBestaetigenId === p.id ? (
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => setStornierenBestaetigenId(null)}
+                            className="text-xs text-muted"
+                          >
+                            Abbrechen
+                          </button>
+                          <button
+                            onClick={() => stornieren(p.id)}
+                            className="rounded-lg bg-danger px-2 py-1 text-xs font-medium text-white"
+                          >
+                            Stornieren
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setStornierenBestaetigenId(p.id)}
+                          className="text-xs font-medium text-danger"
+                        >
+                          Stornieren
+                        </button>
+                      )
+                    ) : (
+                      <button onClick={() => entfernen(p.id)} aria-label="Entfernen" className="text-muted">
+                        <Minus className="h-4 w-4" />
+                      </button>
+                    )}
                   </div>
                 </li>
               ))}
